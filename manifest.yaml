@@ -1,0 +1,38 @@
+# You can use this to create a bot.
+display_information:
+  name: orpheAUX
+  description: playin' music for hack nights
+  background_color: "#6b1262"
+features:
+  bot_user:
+    display_name: orpheAUX
+    always_online: true
+  slash_commands:
+    - command: /play
+      url: https://orpheaux.com/a
+      description: Plays a song on Orpheaux
+      usage_hint: youtu.be/song
+      should_escape: false
+    - command: /stop
+      description: Stops playback.
+      should_escape: false
+oauth_config:
+  redirect_urls:
+    - https://aux.dinosaurbbq.org/redirect
+  scopes:
+    bot:
+      - app_mentions:read
+      - calls:read
+      - calls:write
+      - channels:join
+      - channels:read
+      - chat:write
+      - chat:write.public
+      - commands
+      - users:read
+settings:
+  interactivity:
+    is_enabled: true
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false
