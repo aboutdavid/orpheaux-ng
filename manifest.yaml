@@ -1,7 +1,6 @@
-# You can use this to create a bot.
 display_information:
-  name: orpheAUX
-  description: playin' music for hack nights
+  name: orpheaux
+  description: playing music for huddles
   background_color: "#6b1262"
 features:
   bot_user:
@@ -15,6 +14,9 @@ features:
       should_escape: false
     - command: /stop
       description: Stops playback.
+      should_escape: false
+    - command: /aboutorpheaux
+      description: Prints info about Orpeaux
       should_escape: false
 oauth_config:
   redirect_urls:

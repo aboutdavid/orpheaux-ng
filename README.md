@@ -14,20 +14,17 @@ Orpheaux is very much in alpha. Now works on all platforms which can run Google 
 # Clone this repo
 git clone https://github.com/aboutdavid/orpheaux-ng
 
-# Install dependencies
-yarn install
-
 # Copy the config
 cp .env.example .env
 
 # Edit the config
 nano .env
 
-# Start the browser service
-node browser
+# Build the container
+docker build --pull --rm -f "Dockerfile" -t aboutdavid/orpheaux-ng:latest "."
 
-# Start the slack bot
-node index
+# Start the stack
+docker compose up -d
 ```
 
 ## Structure

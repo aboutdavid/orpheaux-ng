@@ -3,12 +3,18 @@
   "version": "0.0.1",
   "main": "index.js",
   "license": "AGPL-3.0-only",
+  "scripts": {
+    "start": "node index.js &\n node browser.js"
+  },
   "dependencies": {
     "@slack/bolt": "^3.17.1",
     "dotenv": "^16.4.5",
     "express": "^4.18.3",
+    "ical": "^0.8.0",
+    "is-docker": "2.2.1",
     "node-fetch": "2.7.0",
     "puppeteer-core": "^22.3.0",
+    "redis": "^4.6.13",
     "yt-dlp-wrap": "^2.3.12"
   }
 }

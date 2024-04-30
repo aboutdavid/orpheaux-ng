@@ -7,6 +7,7 @@ const crypto = require("node:crypto");
 const path = require("node:path")
 const os = require("node:os")
 const ytDlpWrap = new YTDlpWrap('/usr/bin/yt-dlp');
+const isDocker = require("is-docker")
 const app = new App({
     token: process.env.SLACK_BOT_TOKEN,
     signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -14,7 +15,38 @@ const app = new App({
     socketMode: true
 });
 
+app.command('/aboutorpheaux', async ({ ack, command, respond, say, body }) => {
+    await ack()
+    const version = execSync(`${process.env.CHROME_EXECUTABLE_PATH} --version`).toString().trim()
 
+    respond({
+        "blocks": [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "ℹ️ Below is information about the Orpeaux instance"
+                }
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": `Chromium Version: ${version}
+Orpheaux Version: ${require("./package.json").version}
+Bolt.js Version: ${require("./package.json").dependencies['@slack/bolt'].replace("^", "")}
+Operating System Info: 
+OS Type: ${os.type()} 
+OS Version: ${os.version()}
+OS Release: ${os.release()}
+${isDocker() ? "Running in Docker 🐋" : ""}`
+                    }
+                ]
+            }
+        ]
+    })
+})
 app.command('/play', async ({ ack, command, respond, say, body }) => {
 
 
@@ -46,7 +78,7 @@ app.command('/play', async ({ ack, command, respond, say, body }) => {
             execSync(`ffmpeg -i ${tmpPath}.mp3 -ar 44100 ${tmpPath}.wav`)
 
             try {
-                var json = await (await fetch(`${process.env.API_BASE_URL}/play?${new URLSearchParams({ file: `${tmpPath}.wav`, channel: body.channel_id })}`, {
+                var json = await (await fetch(`${process.env.BROWSER_BASE_URL}/play?${new URLSearchParams({ file: `${tmpPath}.wav`, channel: body.channel_id })}`, {
                     method: "POST"
                 })).json()
                 if (!json.success) return await respond(json.error)
@@ -85,7 +117,7 @@ Requested by: <@${command.user_id}>`
 
 app.command('/stop', async ({ ack, respond, body }) => {
     await ack();
-    var json = await (await fetch(`${process.env.API_BASE_URL}/stop`, {
+    var json = await (await fetch(`${process.env.BROWSER_BASE_URL}/stop`, {
         method: "POST"
     })).json()
 
