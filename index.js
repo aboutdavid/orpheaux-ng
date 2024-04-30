@@ -115,7 +115,7 @@ Requested by: <@${command.user_id}>`
         })
 });
 
-app.command('/stop', async ({ ack, respond, body }) => {
+app.command('/stop', async ({ ack, respond, body, say }) => {
     await ack();
     var json = await (await fetch(`${process.env.BROWSER_BASE_URL}/stop`, {
         method: "POST"

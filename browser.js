@@ -27,12 +27,21 @@
     headless: false,
     executablePath: process.env.CHROME_EXECUTABLE_PATH || "/chrome/chrome",
     ignoreDefaultArgs: ['--mute-audio'],
+    userDataDir: process.env.CHROME_DATA_DIR || "./data"
   }
+
   if (process.env.CHROME_ON_SERVER) {
     console.log("Running on a server.")
     bopts.args.push("'--no-sandbox")
     bopts.args.push("--disable-setuid-sandbox")
     bopts.headless = true
+  }
+  if (process.env.CHROME_DATA_DIR) {
+    if (fs.existsSync(`${process.env.CHROME_DATA_DIR}/SingletonLock`)) {
+      console.log("SingletonLock exists. Deleting.")
+      fs.rmSync(`${process.env.CHROME_DATA_DIR}/SingletonLock`)
+    }
+    bopts.userDataDir = process.env.CHROME_DATA_DIR || "./data"
   }
   await client.set('queue', "[]");
   if (await client.exists("currentChannel")) await client.del('currentChannel');
@@ -42,18 +51,24 @@
 
   if (fs.existsSync(`${__dirname}/.stream.wav`)) fs.rmSync(`${__dirname}/.stream.wav`)
   console.log("[browser] [Info] Logging in.")
-
   const page = await browser.newPage();
-  await page.goto(`https://${process.env.SLACK_ORG}.slack.com/sign_in_with_password`);
-  await page.type('#email', process.env.SLACK_EMAIL);
-  await page.type('#password', process.env.SLACK_PASSWORD);
-  await Promise.all([
-    page.waitForNavigation(),
-    page.click("#signin_btn"),
-    page.waitForNavigation(),
-  ]);
+  if (process.env.CHROME_DATA_DIR) {
+    await Promise.all([
+      page.waitForNavigation(),
+      page.click("#signin_btn"),
+      page.waitForNavigation(),
+    ]);
+    await page.goto(`https://${process.env.SLACK_ORG}.slack.com/sign_in_with_password`);
+    await page.type('#email', process.env.SLACK_EMAIL);
+    await page.type('#password', process.env.SLACK_PASSWORD);
+    await Promise.all([
+      page.waitForNavigation(),
+      page.click("#signin_btn"),
+      page.waitForNavigation(),
+    ]);
+  }
   const page2 = await browser.newPage()
-  await page.close()
+  if (process.env.CHROME_DATA_DIR) await page.close()
 
   async function quitNow() {
     await client.del("currentChannel")
