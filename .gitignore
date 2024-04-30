@@ -5,3 +5,4 @@ config.yaml
 .stream.wav
 chrome
 data
+*.zip

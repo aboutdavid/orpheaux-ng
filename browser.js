@@ -54,11 +54,9 @@
   const page = await browser.newPage();
   if (process.env.CHROME_DATA_DIR) {
     await Promise.all([
-      page.waitForNavigation(),
-      page.click("#signin_btn"),
+      await page.goto(`https://${process.env.SLACK_ORG}.slack.com/sign_in_with_password`),
       page.waitForNavigation(),
     ]);
-    await page.goto(`https://${process.env.SLACK_ORG}.slack.com/sign_in_with_password`);
     await page.type('#email', process.env.SLACK_EMAIL);
     await page.type('#password', process.env.SLACK_PASSWORD);
     await Promise.all([
