@@ -7,6 +7,7 @@ const crypto = require("node:crypto");
 const path = require("node:path")
 const os = require("node:os")
 const ytDlpWrap = new YTDlpWrap('/usr/bin/yt-dlp');
+const { createClient } = require("redis");
 const isDocker = require("is-docker")
 const app = new App({
     token: process.env.SLACK_BOT_TOKEN,
@@ -16,10 +17,24 @@ const app = new App({
 });
 
 app.command('/aboutorpheaux', async ({ ack, command, respond, say, body }) => {
+    const client = await createClient({
+        url: `redis://:${process.env.REDIS_PASSWORD}@${process.env.REDIS_HOST || "127.0.0.1"}:${process.env.REDIS_PORT || 6379}`
+
+    })
+        .on('error', err => console.log('Redis Client Error', err))
+        .connect();
     await ack()
     const version = execSync(`${process.env.CHROME_EXECUTABLE_PATH} --version`).toString().trim()
-
-    respond({
+    var info = `Chromium Version: ${version}
+Orpheaux Version: ${require('child_process').execSync('git rev-parse --short HEAD').toString().trim()}
+Bolt.js Version: ${require("./package.json").dependencies['@slack/bolt'].replace("^", "")}
+Operating System Info: 
+OS Type: ${os.type()} 
+OS Version: ${os.version()}
+OS Release: ${os.release()}`
+    info += (isDocker() ? "\n🐋 Running in Docker " : "")
+    info += (await client.exists("currentChannel") ? `\n📻 Currently playing in <#${await client.get("currentChannel")}>` : "")
+    await respond({
         "blocks": [
             {
                 "type": "section",
@@ -33,14 +48,42 @@ app.command('/aboutorpheaux', async ({ ack, command, respond, say, body }) => {
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": `Chromium Version: ${version}
-Orpheaux Version: ${require("./package.json").version}
-Bolt.js Version: ${require("./package.json").dependencies['@slack/bolt'].replace("^", "")}
-Operating System Info: 
-OS Type: ${os.type()} 
-OS Version: ${os.version()}
-OS Release: ${os.release()}
-${isDocker() ? "Running in Docker 🐋" : ""}`
+                        "text": info
+                    }
+                ]
+            }
+        ]
+    })
+    client.disconnect();
+})
+app.command('/current', async ({ ack, command, respond, say, body }) => {
+    await ack()
+    const client = await createClient({
+        url: `redis://:${process.env.REDIS_PASSWORD}@${process.env.REDIS_HOST || "127.0.0.1"}:${process.env.REDIS_PORT || 6379}`
+
+    })
+        .on('error', err => console.log('Redis Client Error', err))
+        .connect();
+    if (!await client.exists("currentSong")) return await respond("⚠️ There is no current song")
+    const song = JSON.parse(await client.get("currentSong"))
+    await respond({
+        "blocks": [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "ℹ️ Below is information about the current song"
+                }
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": `Title: ${song.title}
+Author: ${song.author}
+URL: ${song.url}
+Requestor: ${song.user}`
                     }
                 ]
             }
@@ -48,8 +91,6 @@ ${isDocker() ? "Running in Docker 🐋" : ""}`
     })
 })
 app.command('/play', async ({ ack, command, respond, say, body }) => {
-
-
     await ack();
     if (!command.text) return await respond("Please provide a YouTube URL or Video ID.")
     const url = command.text.split(" ")[0].trim()
@@ -78,7 +119,7 @@ app.command('/play', async ({ ack, command, respond, say, body }) => {
             execSync(`ffmpeg -i ${tmpPath}.mp3 -ar 44100 ${tmpPath}.wav`)
 
             try {
-                var json = await (await fetch(`${process.env.BROWSER_BASE_URL}/play?${new URLSearchParams({ file: `${tmpPath}.wav`, channel: body.channel_id })}`, {
+                var json = await (await fetch(`${process.env.BROWSER_BASE_URL}/play?${new URLSearchParams({ file: `${tmpPath}.wav`, channel: body.channel_id, title: metadata.title, author: metadata.channel, url: metadata.original_url, user: command.user_id })}`, {
                     method: "POST"
                 })).json()
                 if (!json.success) return await respond(json.error)

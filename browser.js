@@ -27,7 +27,6 @@
     headless: false,
     executablePath: process.env.CHROME_EXECUTABLE_PATH || "/chrome/chrome",
     ignoreDefaultArgs: ['--mute-audio'],
-    userDataDir: process.env.CHROME_DATA_DIR || "./data"
   }
 
   if (process.env.CHROME_ON_SERVER) {
@@ -36,15 +35,11 @@
     bopts.args.push("--disable-setuid-sandbox")
     bopts.headless = true
   }
-  if (process.env.CHROME_DATA_DIR) {
-    if (fs.existsSync(`${process.env.CHROME_DATA_DIR}/SingletonLock`)) {
-      console.log("SingletonLock exists. Deleting.")
-      fs.rmSync(`${process.env.CHROME_DATA_DIR}/SingletonLock`)
-    }
-    bopts.userDataDir = process.env.CHROME_DATA_DIR || "./data"
-  }
+
   await client.set('queue', "[]");
   if (await client.exists("currentChannel")) await client.del('currentChannel');
+  if (await client.exists("currentSong")) await client.del('currentSong');
+
   await client.set('songEnd', 0);
   global.clearId = 0
   const browser = await puppeteer.launch(bopts);
@@ -52,18 +47,17 @@
   if (fs.existsSync(`${__dirname}/.stream.wav`)) fs.rmSync(`${__dirname}/.stream.wav`)
   console.log("[browser] [Info] Logging in.")
   const page = await browser.newPage();
-  if (process.env.CHROME_DATA_DIR) {
-    await page.goto(`https://${process.env.SLACK_ORG}.slack.com/sign_in_with_password`, { waitUntil: 'domcontentloaded' });
-    await page.type('#email', process.env.SLACK_EMAIL);
-    await page.type('#password', process.env.SLACK_PASSWORD);
-    await Promise.all([
-      page.waitForNavigation(),
-      page.click("#signin_btn"),
-      page.waitForNavigation(),
-    ]);
-  }
+  await page.goto(`https://${process.env.SLACK_ORG}.slack.com/sign_in_with_password`, { waitUntil: 'domcontentloaded' });
+  await page.type('#email', process.env.SLACK_EMAIL);
+  await page.type('#password', process.env.SLACK_PASSWORD);
+  await Promise.all([
+    page.waitForNavigation(),
+    page.click("#signin_btn"),
+    page.waitForNavigation(),
+  ]);
+
   const page2 = await browser.newPage()
-  if (process.env.CHROME_DATA_DIR) await page.close()
+  await page.close()
 
   async function quitNow() {
     await client.del("currentChannel")
@@ -77,14 +71,16 @@
       await page2.click(`#huddle_mini_player_leave_button`)
     } catch (e) { }
   }
-  async function loadSong(channel, cb) {
+  async function loadSong({ channel, title, author, url, user }, cb) {
     const event = await utils.ongoingEvent(channel)
     const rightChannel = await utils.isCalendarChannel(channel)
     if (event && !rightChannel) return cb({ success: false, error: "Another channel has already booked Orpheaux." })
-    console.log(await client.get("currentChannel"))
     if (!event && await client.exists("currentChannel") && await client.get("currentChannel") != channel) return cb({ success: false, error: "A channel is already using Orpheaux." })
     if (!event) await client.set("currentChannel", channel)
     if (page2.url() != `https://app.slack.com/client/${process.env.SLACK_ID}/${channel}`) await page2.goto(`https://app.slack.com/client/${process.env.SLACK_ID}/${channel}`)
+    await client.set("currentSong", JSON.stringify({
+      title, author, url, user
+    }))
     try {
       await page2.click(`#huddle_mini_player_leave_button`)
     } catch (e) {
@@ -118,12 +114,12 @@
     res.json({ success: true })
   })
   app.post('/play', async (req, res) => {
-    const { file, channel } = req.query
+    const { file, channel, title, author, url, user } = req.query
     console.log(`[stream] [info] Playing ${file}`)
     if (fs.existsSync(`${__dirname}/.stream.wav`)) fs.rmSync(`${__dirname}/.stream.wav`)
     fs.copyFileSync(`${file}`, `${__dirname}/.stream.wav`)
     await client.set("songEnd", parseInt(execSync(`mediainfo --Inform="Audio;%Duration%" .stream.wav`).toString().replaceAll("\n", "").trim()))
-    await loadSong(channel, function (json) {
+    await loadSong({ channel, title, author, url, user }, function (json) {
       res.json(json)
     })
     await setQuit()
