@@ -6,9 +6,10 @@ const YTDlpWrap = require('yt-dlp-wrap').default;
 const crypto = require("node:crypto");
 const path = require("node:path")
 const os = require("node:os")
-const ytDlpWrap = new YTDlpWrap('/usr/bin/yt-dlp');
+const ytDlpWrap = new YTDlpWrap(process.env.YTDLP_BINARY || '/usr/bin/yt-dlp');
 const { createClient } = require("redis");
 const isDocker = require("is-docker")
+const utils = require("./utils")
 const app = new App({
     token: process.env.SLACK_BOT_TOKEN,
     signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -23,17 +24,19 @@ app.command('/aboutorpheaux', async ({ ack, command, respond, say, body }) => {
     })
         .on('error', err => console.log('Redis Client Error', err))
         .connect();
-    await ack()
-    const version = execSync(`${process.env.CHROME_EXECUTABLE_PATH} --version`).toString().trim()
-    var info = `Chromium Version: ${version}
+    await ack();
+    var info = `Chromium Version: ${execSync(`${process.env.CHROME_EXECUTABLE_PATH} --version`).toString().trim()}
 Orpheaux Version: ${require('child_process').execSync('git rev-parse --short HEAD').toString().trim()}
 Bolt.js Version: ${require("./package.json").dependencies['@slack/bolt'].replace("^", "")}
+yt-dlp Version: ${require('child_process').execSync('yt-dlp --version').toString().trim()}
+Uptime: ${utils.formatSeconds(Math.floor(process.uptime()))}
 Operating System Info: 
 OS Type: ${os.type()} 
 OS Version: ${os.version()}
 OS Release: ${os.release()}`
     info += (isDocker() ? "\n🐋 Running in Docker " : "")
     info += (await client.exists("currentChannel") ? `\n📻 Currently playing in <#${await client.get("currentChannel")}>` : "")
+    info += (await utils.ongoingEvent() ? "\n🎫 Orpheaux is currently booked for an event" : "")
     await respond({
         "blocks": [
             {
@@ -104,7 +107,7 @@ app.command('/play', async ({ ack, command, respond, say, body }) => {
         console.log(e)
         return await respond("Invalid video.")
     }
-
+    await respond(`Downloading \`${metadata.title}\`, please wait.`)
     const id = crypto.randomBytes(16).toString("hex");
     const tmpPath = path.resolve(os.tmpdir(), id)
     ytDlpWrap

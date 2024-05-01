@@ -12,7 +12,6 @@ services:
       - REDIS_HOST=cache
       - CHROME_EXECUTABLE_PATH=/chrome/chrome
       - CHROME_ON_SERVER=true
-      - CHROME_DATA_DIR=/chrome/data
     cap_add:
     - SYS_ADMIN
     volumes:

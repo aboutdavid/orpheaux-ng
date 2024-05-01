@@ -47,6 +47,13 @@ module.exports = {
 
         return currentEvent ? true : false
 
+    },
+    formatSeconds: function (seconds) {
+        var hours = Math.floor(seconds / (60 * 60));
+        var minutes = Math.floor(seconds % (60 * 60) / 60);
+        var seconds = Math.floor(seconds % 60);
+
+        return `${hours.toString().padStart(2, '0')} hour(s), ${minutes.toString().padStart(2, '0')} minute(s), ${seconds.toString().padStart(2, '0')} second(s)`;
     }
 }
 

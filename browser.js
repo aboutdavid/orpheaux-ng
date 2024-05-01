@@ -72,7 +72,7 @@
     } catch (e) { }
   }
   async function loadSong({ channel, title, author, url, user }, cb) {
-    const event = await utils.ongoingEvent(channel)
+    const event = await utils.ongoingEvent()
     const rightChannel = await utils.isCalendarChannel(channel)
     if (event && !rightChannel) return cb({ success: false, error: "Another channel has already booked Orpheaux." })
     if (!event && await client.exists("currentChannel") && await client.get("currentChannel") != channel) return cb({ success: false, error: "A channel is already using Orpheaux." })
